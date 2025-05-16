@@ -1,0 +1,278 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model fees {
+  id_fee           Int                   @id @default(autoincrement())
+  transaction_type fees_transaction_type
+  method           fees_method
+  fee_percentage   Decimal?              @default(0.00) @db.Decimal(5, 2)
+  fee_fixed        Decimal?              @default(0.00) @db.Decimal(10, 2)
+  created_at       DateTime              @default(now()) @db.Timestamp(0)
+  updated_at       DateTime              @default(now()) @db.Timestamp(0)
+  deleted          fees_deleted?         @default(no)
+  transactions     transactions[]
+
+  @@map("fees")
+}
+
+model financialreports {
+  id_report          Int                       @id @default(autoincrement())
+  start_date         DateTime                  @db.Date
+  end_date           DateTime                  @db.Date
+  total_transactions Int?                      @default(0)
+  total_amount       Decimal?                  @default(0.00) @db.Decimal(15, 2)
+  total_fees         Decimal?                  @default(0.00) @db.Decimal(15, 2)
+  generated_at       DateTime                  @default(now()) @db.Timestamp(0)
+  deleted            financialreports_deleted? @default(no)
+
+  @@map("financialreports")
+}
+
+model notifications {
+  id_notification Int                    @id @default(autoincrement())
+  user_id         Int
+  title           String                 @db.VarChar(255)
+  message         String
+  is_read         Boolean?               @default(false)
+  sent_at         DateTime               @default(now()) @db.Timestamp(0)
+  deleted         notifications_deleted? @default(no)
+  users           users                  @relation(fields: [user_id], references: [id_user], onDelete: Cascade, onUpdate: Restrict, map: "notifications_ibfk_1")
+
+  @@index([user_id], map: "idx_notifications_user_id")
+  @@map("notifications")
+}
+
+model transactions {
+  id_transaction   Int                  @id @default(autoincrement())
+  user_id          Int                  // Initiateur du transfert
+  recipient_user_id Int?                 // Destinataire (optionnel si transfert)
+  type             transactions_type
+  amount           Decimal               @db.Decimal(10, 2)
+  status           transactions_status? @default(pending)
+  initiated_at     DateTime              @default(now()) @db.Timestamp(0)
+  completed_at     DateTime              @default(now()) @db.Timestamp(0)
+  fee_id           Int?
+  deleted          transactions_deleted? @default(no)
+
+  users                users    @relation(fields: [user_id], references: [id_user], onDelete: Cascade)
+  recipient            users?   @relation("TransactionRecipient", fields: [recipient_user_id], references: [id_user])
+  fees                 fees?    @relation(fields: [fee_id], references: [id_fee])
+
+  @@index([fee_id])
+  @@index([user_id])
+  @@index([recipient_user_id])
+}
+
+model users {
+  id_user           Int                 @id @default(autoincrement())
+  username          String              @unique @db.VarChar(255)
+  email             String              @unique @db.VarChar(255)
+  phone             String              @unique @db.VarChar(20) @default("")
+  password          String              @db.VarChar(255)
+  role              users_role          @default(user)
+  balance           Decimal             @default(0) @db.Decimal(15, 2)
+  is_verified       Boolean             @default(false)
+  refresh_token     String?             @db.VarChar(255)
+  created_at        DateTime            @default(now()) @db.Timestamp(0)
+  updated_at        DateTime            @default(now()) @db.Timestamp(0)
+  deleted           users_deleted?      @default(no)
+
+  // Relations
+  notifications        notifications[]
+  transactions         transactions[]  @relation("UserSender")
+  receivedTransactions transactions[]  @relation("TransactionRecipient") 
+
+  userprofiles          userprofiles[]
+  userverifications     userverifications[]
+  virtual_cards         virtual_cards[]  
+  card_orders           card_orders[]  
+
+  @@map("users")
+}
+
+model userprofiles {
+  id_profile      Int                   @id @default(autoincrement())
+  user_id         Int
+  full_name       String?               @db.VarChar(255)
+  phone_number    String?               @db.VarChar(20)
+  address         String?
+  date_of_birth   DateTime?             @db.Date
+  created_at      DateTime              @default(now()) @db.Timestamp(0)
+  updated_at      DateTime              @default(now()) @db.Timestamp(0)
+  deleted         userprofiles_deleted? @default(no)
+  users           users                 @relation(fields: [user_id], references: [id_user], onDelete: Cascade)
+
+  @@map("userprofiles")
+}
+
+model userverifications {
+  id_verification Int                        @id @default(autoincrement())
+  user_id         Int
+  method          userverifications_method
+  status          userverifications_status?  @default(pending)
+  requested_at    DateTime                   @default(now()) @db.Timestamp(0)
+  verified_at     DateTime?                  @db.Timestamp(0)
+  deleted         userverifications_deleted? @default(no)
+  users           users                      @relation(fields: [user_id], references: [id_user], onDelete: Cascade, onUpdate: Restrict, map: "userverifications_ibfk_1")
+
+  @@index([user_id], map: "idx_userverifications_user_id")
+  @@map("userverifications")
+}
+
+// Enums (inchangés)
+enum fees_deleted {
+  yes
+  no
+}
+
+enum fees_method {
+  mobile_money
+  bank_transfer
+}
+
+enum fees_transaction_type {
+  deposit
+  withdrawal
+  transfer
+}
+
+enum financialreports_deleted {
+  yes
+  no
+}
+
+enum notifications_deleted {
+  yes
+  no
+}
+
+enum transactions_deleted {
+  yes
+  no
+}
+
+enum transactions_status {
+  pending
+  completed
+  failed
+}
+
+enum transactions_type {
+  deposit
+  withdrawal
+  transfer
+}
+
+enum userprofiles_deleted {
+  yes
+  no
+}
+
+enum users_deleted {
+  yes
+  no
+}
+
+enum users_role {
+  admin
+  user
+}
+
+enum userverifications_deleted {
+  yes
+  no
+}
+
+enum userverifications_method {
+  email
+  sms
+  document
+}
+
+enum userverifications_status {
+  pending
+  verified
+  failed
+}
+
+model virtual_cards {
+  id_card          Int                   @id @default(autoincrement())
+  user_id          Int
+  external_id      String                @unique @db.VarChar(255) // ID de la carte chez le fournisseur
+  card_number      String                @db.VarChar(16) // Partiellement masqué en front
+  expiry_date      String                @db.VarChar(5)  // Format: MM/YY
+  cvv              String?               @db.VarChar(3)  // Optionnel selon votre besoin
+  status           virtual_cards_status  @default(ACTIVE)
+  balance          Decimal               @default(0.00) @db.Decimal(10, 2)
+  currency         String                @default("USD") @db.VarChar(3)
+  created_at       DateTime              @default(now()) @db.Timestamp(0)
+  updated_at       DateTime              @default(now()) @db.Timestamp(0)
+  deleted          virtual_cards_deleted? @default(no)
+  
+  // Relations
+  users            users                 @relation(fields: [user_id], references: [id_user], onDelete: Cascade)
+  card_orders      card_orders[]
+  
+  @@index([user_id], map: "idx_virtual_cards_user_id")
+  @@map("virtual_cards")
+}
+
+model card_orders {
+  id_order         Int                   @id @default(autoincrement())
+  card_id          Int?
+  user_id          Int
+  type             card_orders_type
+  amount           Decimal               @db.Decimal(10, 2)
+  fee              Decimal               @default(0.00) @db.Decimal(10, 2)
+  provider_fee     Decimal?              @db.Decimal(10, 2) // Frais de l'API externe
+  status           card_orders_status    @default(PENDING)
+  external_ref     String?               @db.VarChar(255) // ID de l'opération chez le fournisseur
+  executed_at      DateTime?             @db.Timestamp(0)
+  created_at       DateTime              @default(now()) @db.Timestamp(0)
+  deleted          card_orders_deleted?  @default(no)
+  
+  // Relations
+  users            users                 @relation(fields: [user_id], references: [id_user], onDelete: Cascade)
+  virtual_cards    virtual_cards?        @relation(fields: [card_id], references: [id_card], onDelete: SetNull)
+  
+  @@index([card_id], map: "idx_card_orders_card_id")
+  @@index([user_id], map: "idx_card_orders_user_id")
+  @@map("card_orders")
+}
+
+// Nouveaux enums à ajouter
+enum virtual_cards_status {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum virtual_cards_deleted {
+  yes
+  no
+}
+
+enum card_orders_type {
+  PURCHASE
+  TOPUP
+}
+
+enum card_orders_status {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum card_orders_deleted {
+  yes
+  no
+}
