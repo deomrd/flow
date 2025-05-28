@@ -50,20 +50,20 @@ model notifications {
 }
 
 model transactions {
-  id_transaction   Int                  @id @default(autoincrement())
-  user_id          Int                  // Initiateur du transfert
-  recipient_user_id Int?                 // Destinataire (optionnel si transfert)
-  type             transactions_type
-  amount           Decimal               @db.Decimal(10, 2)
-  status           transactions_status? @default(pending)
-  initiated_at     DateTime              @default(now()) @db.Timestamp(0)
-  completed_at     DateTime              @default(now()) @db.Timestamp(0)
-  fee_id           Int?
-  deleted          transactions_deleted? @default(no)
+  id_transaction    Int                  @id @default(autoincrement())
+  user_id           Int                  // Initiateur du transfert
+  recipient_user_id  Int?                 // Destinataire (optionnel si transfert)
+  type              transactions_type
+  amount            Decimal               @db.Decimal(10, 2)
+  status            transactions_status? @default(pending)
+  initiated_at      DateTime              @default(now()) @db.Timestamp(0)
+  completed_at      DateTime              @default(now()) @db.Timestamp(0)
+  fee_id            Int?
+  deleted           transactions_deleted? @default(no)
 
-  users                users    @relation(fields: [user_id], references: [id_user], onDelete: Cascade)
-  recipient            users?   @relation("TransactionRecipient", fields: [recipient_user_id], references: [id_user])
-  fees                 fees?    @relation(fields: [fee_id], references: [id_fee])
+  users             users    @relation("UserSender", fields: [user_id], references: [id_user], onDelete: Cascade)
+  recipient         users?   @relation("TransactionRecipient", fields: [recipient_user_id], references: [id_user])
+  fees              fees?    @relation(fields: [fee_id], references: [id_fee])
 
   @@index([fee_id])
   @@index([user_id])
@@ -84,7 +84,6 @@ model users {
   updated_at        DateTime            @default(now()) @db.Timestamp(0)
   deleted           users_deleted?      @default(no)
 
-  // Relations
   notifications        notifications[]
   transactions         transactions[]  @relation("UserSender")
   receivedTransactions transactions[]  @relation("TransactionRecipient") 
@@ -96,6 +95,7 @@ model users {
 
   @@map("users")
 }
+
 
 model userprofiles {
   id_profile      Int                   @id @default(autoincrement())

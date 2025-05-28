@@ -1,10 +1,15 @@
 import { PrismaClient } from '@prisma/client';
 
+const prisma = new PrismaClient();
+
 export class SearchUsersUseCase {
-  async execute(query: string) {
+  async execute(query: string, excludeUserId?: number) {
     return prisma.users.findMany({
       where: {
         deleted: 'no',
+        id_user: {
+          not: excludeUserId,  // Exclusion de l'utilisateur connecté
+        },
         OR: [
           {
             username: {

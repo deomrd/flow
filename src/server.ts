@@ -1,9 +1,10 @@
 import express from "express";
+import { PrismaClient } from '@prisma/client';
 import cors from "cors";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import userRoutes from "./interfaces/http/routes/userRoutes";
-import transferRoutes from "./interfaces/http/routes/transferRoutes";
+import transferRoutes from "./interfaces/http/routes/transfer.routes";
 import userSearchRoutes from "./interfaces/http/routes/userSearchRoutes";
 
 // App & Server Setup
@@ -38,8 +39,32 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes HTTP
 app.use("/api/users", userRoutes);
-app.use("/api/transactions", transferRoutes);
+
 app.use('/api/search', userSearchRoutes);
+
+app.use("/api/transactions", transferRoutes); 
+
+
+async function initializeFees() {
+    const prisma = new PrismaClient();
+    
+    const existingFees = await prisma.fees.findFirst({
+        where: { transaction_type: 'transfer' }
+    });
+
+    if (!existingFees) {
+        await prisma.fees.create({
+            data: {
+                transaction_type: 'transfer',
+                method: 'mobile_money',
+                fee_percentage: 1.5,
+                fee_fixed: 0
+            }
+        });
+    }
+}
+
+initializeFees().catch(console.error);
 
 // WebSocket Events
 io.on("connection", (socket) => {

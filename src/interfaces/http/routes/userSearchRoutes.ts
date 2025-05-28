@@ -3,6 +3,6 @@ import { UserController } from '../controllers/userSearchController';
 
 const router = Router();
 
-router.get('/search', UserController.search);
+router.get('/', UserController.search);
 
 export default router;
