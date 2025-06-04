@@ -107,7 +107,7 @@ export class UserController {
     const token = jwt.sign(
       { userId: user.id_user },
       process.env.JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "14d" }
     );
 
     const refreshToken = jwt.sign(

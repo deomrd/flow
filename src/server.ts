@@ -45,27 +45,6 @@ app.use('/api/search', userSearchRoutes);
 app.use("/api/transactions", transferRoutes); 
 
 
-async function initializeFees() {
-    const prisma = new PrismaClient();
-    
-    const existingFees = await prisma.fees.findFirst({
-        where: { transaction_type: 'transfer' }
-    });
-
-    if (!existingFees) {
-        await prisma.fees.create({
-            data: {
-                transaction_type: 'transfer',
-                method: 'mobile_money',
-                fee_percentage: 1.5,
-                fee_fixed: 0
-            }
-        });
-    }
-}
-
-initializeFees().catch(console.error);
-
 // WebSocket Events
 io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);

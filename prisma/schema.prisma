@@ -8,19 +8,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model fees {
-  id_fee           Int                   @id @default(autoincrement())
-  transaction_type fees_transaction_type
-  method           fees_method
-  fee_percentage   Decimal?              @default(0.00) @db.Decimal(5, 2)
-  fee_fixed        Decimal?              @default(0.00) @db.Decimal(10, 2)
-  created_at       DateTime              @default(now()) @db.Timestamp(0)
-  updated_at       DateTime              @default(now()) @db.Timestamp(0)
-  deleted          fees_deleted?         @default(no)
-  transactions     transactions[]
 
-  @@map("fees")
-}
 
 model financialreports {
   id_report          Int                       @id @default(autoincrement())
@@ -51,21 +39,20 @@ model notifications {
 
 model transactions {
   id_transaction    Int                  @id @default(autoincrement())
-  user_id           Int                  // Initiateur du transfert
-  recipient_user_id  Int?                 // Destinataire (optionnel si transfert)
+  user_id           Int
+  recipient_user_id  Int?
   type              transactions_type
   amount            Decimal               @db.Decimal(10, 2)
+  fees              Decimal?              @db.Decimal(10, 2)   // <-- nouveau champ frais
   status            transactions_status? @default(pending)
+  note              String?
   initiated_at      DateTime              @default(now()) @db.Timestamp(0)
   completed_at      DateTime              @default(now()) @db.Timestamp(0)
-  fee_id            Int?
   deleted           transactions_deleted? @default(no)
 
   users             users    @relation("UserSender", fields: [user_id], references: [id_user], onDelete: Cascade)
   recipient         users?   @relation("TransactionRecipient", fields: [recipient_user_id], references: [id_user])
-  fees              fees?    @relation(fields: [fee_id], references: [id_fee])
 
-  @@index([fee_id])
   @@index([user_id])
   @@index([recipient_user_id])
 }
