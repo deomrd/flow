@@ -2,30 +2,38 @@ generator client {
   provider = "prisma-client-js"
 }
 
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+model Withdrawal {
+  id             String        @id @default(uuid())
+  userId         String        @db.Uuid
+  amount         Float
+  fees           Float
+  total          Float
+  mode           ModeRetrait
+  status         StatutRetrait @default(PENDING)
+  withdrawalCode String        @unique
+  expiresAt      DateTime
+  completedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  pinUsed        String?
+  recipientPhone String?
 
+  user users @relation(fields: [userId], references: [id_user], onDelete: Cascade)
 
-model financialreports {
-  id_report          Int                       @id @default(autoincrement())
-  start_date         DateTime                  @db.Date
-  end_date           DateTime                  @db.Date
-  total_transactions Int?                      @default(0)
-  total_amount       Decimal?                  @default(0.00) @db.Decimal(15, 2)
-  total_fees         Decimal?                  @default(0.00) @db.Decimal(15, 2)
-  generated_at       DateTime                  @default(now()) @db.Timestamp(0)
-  deleted            financialreports_deleted? @default(no)
-
-  @@map("financialreports")
+  @@index([withdrawalCode])
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([status])
 }
 
 model notifications {
-  id_notification Int                    @id @default(autoincrement())
-  user_id         Int
+  id_notification String                 @id @default(uuid()) @db.Uuid
+  user_id         String                 @db.Uuid
   title           String                 @db.VarChar(255)
   message         String
   is_read         Boolean?               @default(false)
@@ -37,83 +45,196 @@ model notifications {
   @@map("notifications")
 }
 
+model users {
+  id_user            String         @id @default(uuid()) @db.Uuid
+  username           String         @unique @db.VarChar(255)
+  email              String         @unique @db.VarChar(255)
+  phone              String         @unique @db.VarChar(20)
+  password           String         @db.VarChar(255)
+  role               users_role     @default(user)
+  balance            Decimal        @default(0) @db.Decimal(15, 2)
+  pin                String?        @db.VarChar(255)
+  is_verified        Boolean        @default(false)
+  is_verified_email  Boolean        @default(false)
+  is_verified_number Boolean        @default(false)
+  refresh_token      String?        @db.VarChar(255)
+  created_at         DateTime       @default(now()) @db.Timestamp(0)
+  updated_at         DateTime       @default(now()) @db.Timestamp(0)
+  deleted            users_deleted? @default(no)
+
+  notifications        notifications[]
+  transactions         transactions[]  @relation("UserSender")
+  receivedTransactions transactions[]  @relation("TransactionRecipient")
+  userprofiles         userprofiles[]
+  virtual_cards        virtual_cards[]
+  card_orders          card_orders[]
+  payment              Payment[]
+  otps                 otp[]
+  withdrawals          Withdrawal[]
+
+  @@map("users")
+}
+
+model userprofiles {
+  id_profile    String                @id @default(uuid()) @db.Uuid
+  user_id       String                @db.Uuid
+  full_name     String                @db.VarChar(255)
+  phone_number  String?               @db.VarChar(20)
+  address       String?
+  date_of_birth DateTime?             @db.Date
+  created_at    DateTime              @default(now()) @db.Timestamp(0)
+  updated_at    DateTime              @default(now()) @db.Timestamp(0)
+  deleted       userprofiles_deleted? @default(no)
+  users         users                 @relation(fields: [user_id], references: [id_user], onDelete: Cascade)
+
+  @@map("userprofiles")
+}
+
 model transactions {
-  id_transaction    Int                  @id @default(autoincrement())
-  user_id           Int
-  recipient_user_id  Int?
+  id_transaction    String                @id @default(uuid()) @db.Uuid
+  user_id           String                @db.Uuid
+  recipient_user_id String?               @db.Uuid
   type              transactions_type
   amount            Decimal               @db.Decimal(10, 2)
-  fees              Decimal?              @db.Decimal(10, 2)   // <-- nouveau champ frais
-  status            transactions_status? @default(pending)
+  fees              Decimal?              @db.Decimal(10, 2)
+  status            transactions_status?  @default(pending)
   note              String?
+  code              String?               @unique @db.VarChar(20)
   initiated_at      DateTime              @default(now()) @db.Timestamp(0)
   completed_at      DateTime              @default(now()) @db.Timestamp(0)
   deleted           transactions_deleted? @default(no)
 
-  users             users    @relation("UserSender", fields: [user_id], references: [id_user], onDelete: Cascade)
-  recipient         users?   @relation("TransactionRecipient", fields: [recipient_user_id], references: [id_user])
+  users     users  @relation("UserSender", fields: [user_id], references: [id_user], onDelete: Cascade)
+  recipient users? @relation("TransactionRecipient", fields: [recipient_user_id], references: [id_user])
 
   @@index([user_id])
   @@index([recipient_user_id])
 }
 
-model users {
-  id_user           Int                 @id @default(autoincrement())
-  username          String              @unique @db.VarChar(255)
-  email             String              @unique @db.VarChar(255)
-  phone             String              @unique @db.VarChar(20) @default("")
-  password          String              @db.VarChar(255)
-  role              users_role          @default(user)
-  balance           Decimal             @default(0) @db.Decimal(15, 2)
-  is_verified       Boolean             @default(false)
-  refresh_token     String?             @db.VarChar(255)
-  created_at        DateTime            @default(now()) @db.Timestamp(0)
-  updated_at        DateTime            @default(now()) @db.Timestamp(0)
-  deleted           users_deleted?      @default(no)
 
-  notifications        notifications[]
-  transactions         transactions[]  @relation("UserSender")
-  receivedTransactions transactions[]  @relation("TransactionRecipient") 
 
-  userprofiles          userprofiles[]
-  userverifications     userverifications[]
-  virtual_cards         virtual_cards[]  
-  card_orders           card_orders[]  
+model otp {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @db.VarChar(6)
+  type      OTPType
+  expiresAt DateTime
+  userId    String   @db.Uuid
+  user      users    @relation(fields: [userId], references: [id_user])
 
-  @@map("users")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
+model virtual_cards {
+  id_card     String                 @id @default(uuid()) @db.Uuid
+  user_id     String                 @db.Uuid
+  external_id String                 @unique @db.VarChar(255)
+  card_number String                 @db.VarChar(16)
+  expiry_date String                 @db.VarChar(5)
+  cvv         String?                @db.VarChar(3)
+  status      virtual_cards_status   @default(ACTIVE)
+  balance     Decimal                @default(0.00) @db.Decimal(10, 2)
+  currency    String                 @default("USD") @db.VarChar(3)
+  created_at  DateTime               @default(now()) @db.Timestamp(0)
+  updated_at  DateTime               @default(now()) @db.Timestamp(0)
+  deleted     virtual_cards_deleted? @default(no)
 
-model userprofiles {
-  id_profile      Int                   @id @default(autoincrement())
-  user_id         Int
-  full_name       String?               @db.VarChar(255)
-  phone_number    String?               @db.VarChar(20)
-  address         String?
-  date_of_birth   DateTime?             @db.Date
-  created_at      DateTime              @default(now()) @db.Timestamp(0)
-  updated_at      DateTime              @default(now()) @db.Timestamp(0)
-  deleted         userprofiles_deleted? @default(no)
-  users           users                 @relation(fields: [user_id], references: [id_user], onDelete: Cascade)
+  users       users         @relation(fields: [user_id], references: [id_user], onDelete: Cascade)
+  card_orders card_orders[]
 
-  @@map("userprofiles")
+  @@index([user_id], map: "idx_virtual_cards_user_id")
+  @@map("virtual_cards")
 }
 
-model userverifications {
-  id_verification Int                        @id @default(autoincrement())
-  user_id         Int
-  method          userverifications_method
-  status          userverifications_status?  @default(pending)
-  requested_at    DateTime                   @default(now()) @db.Timestamp(0)
-  verified_at     DateTime?                  @db.Timestamp(0)
-  deleted         userverifications_deleted? @default(no)
-  users           users                      @relation(fields: [user_id], references: [id_user], onDelete: Cascade, onUpdate: Restrict, map: "userverifications_ibfk_1")
+model card_orders {
+  id_order     String               @id @default(uuid()) @db.Uuid
+  card_id      String?              @db.Uuid
+  user_id      String               @db.Uuid
+  type         card_orders_type
+  amount       Decimal              @db.Decimal(10, 2)
+  fee          Decimal              @default(0.00) @db.Decimal(10, 2)
+  provider_fee Decimal?             @db.Decimal(10, 2)
+  status       card_orders_status   @default(PENDING)
+  external_ref String?              @db.VarChar(255)
+  executed_at  DateTime?            @db.Timestamp(0)
+  created_at   DateTime             @default(now()) @db.Timestamp(0)
+  deleted      card_orders_deleted? @default(no)
 
-  @@index([user_id], map: "idx_userverifications_user_id")
-  @@map("userverifications")
+  users         users          @relation(fields: [user_id], references: [id_user], onDelete: Cascade)
+  virtual_cards virtual_cards? @relation(fields: [card_id], references: [id_card], onDelete: SetNull)
+
+  @@index([card_id], map: "idx_card_orders_card_id")
+  @@index([user_id], map: "idx_card_orders_user_id")
+  @@map("card_orders")
 }
 
-// Enums (inchangés)
+model Business {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String
+  type      BusinessType
+  email     String?      @unique
+  balance   Decimal      @default(0) @db.Decimal(15, 2)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  pointsOfSale  PointOfSale[]
+  businessUsers BusinessUser[]
+  payment       Payment[]
+}
+
+model PointOfSale {
+  id         String   @id @default(uuid()) @db.Uuid
+  businessId String   @db.Uuid
+  name       String
+  location   String?
+  balance    Decimal  @default(0) @db.Decimal(15, 2)
+  qrCode     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business      Business       @relation(fields: [businessId], references: [id])
+  businessUsers BusinessUser[]
+  payment       Payment[]
+}
+
+model BusinessUser {
+  id            String           @id @default(uuid()) @db.Uuid
+  name          String
+  username      String
+  password      String
+  isActive      Boolean          @default(true)
+  businessId    String           @db.Uuid
+  pointOfSaleId String?          @db.Uuid
+  role          BusinessUserRole
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  business    Business     @relation(fields: [businessId], references: [id])
+  pointOfSale PointOfSale? @relation(fields: [pointOfSaleId], references: [id])
+
+  @@unique([username, businessId])
+}
+
+model Payment {
+  id            String        @id @default(uuid()) @db.Uuid
+  userId        String        @db.Uuid
+  businessId    String        @db.Uuid
+  pointOfSaleId String?       @db.Uuid
+  amount        Decimal       @db.Decimal(15, 2)
+  currency      String        @default("USD")
+  status        PaymentStatus @default(PENDING)
+  method        PaymentMethod
+  reference     String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user        users        @relation(fields: [userId], references: [id_user])
+  business    Business     @relation(fields: [businessId], references: [id])
+  pointOfSale PointOfSale? @relation(fields: [pointOfSaleId], references: [id])
+}
+
+// Enums (classés à la fin)
+
 enum fees_deleted {
   yes
   no
@@ -172,69 +293,6 @@ enum users_role {
   user
 }
 
-enum userverifications_deleted {
-  yes
-  no
-}
-
-enum userverifications_method {
-  email
-  sms
-  document
-}
-
-enum userverifications_status {
-  pending
-  verified
-  failed
-}
-
-model virtual_cards {
-  id_card          Int                   @id @default(autoincrement())
-  user_id          Int
-  external_id      String                @unique @db.VarChar(255) // ID de la carte chez le fournisseur
-  card_number      String                @db.VarChar(16) // Partiellement masqué en front
-  expiry_date      String                @db.VarChar(5)  // Format: MM/YY
-  cvv              String?               @db.VarChar(3)  // Optionnel selon votre besoin
-  status           virtual_cards_status  @default(ACTIVE)
-  balance          Decimal               @default(0.00) @db.Decimal(10, 2)
-  currency         String                @default("USD") @db.VarChar(3)
-  created_at       DateTime              @default(now()) @db.Timestamp(0)
-  updated_at       DateTime              @default(now()) @db.Timestamp(0)
-  deleted          virtual_cards_deleted? @default(no)
-  
-  // Relations
-  users            users                 @relation(fields: [user_id], references: [id_user], onDelete: Cascade)
-  card_orders      card_orders[]
-  
-  @@index([user_id], map: "idx_virtual_cards_user_id")
-  @@map("virtual_cards")
-}
-
-model card_orders {
-  id_order         Int                   @id @default(autoincrement())
-  card_id          Int?
-  user_id          Int
-  type             card_orders_type
-  amount           Decimal               @db.Decimal(10, 2)
-  fee              Decimal               @default(0.00) @db.Decimal(10, 2)
-  provider_fee     Decimal?              @db.Decimal(10, 2) // Frais de l'API externe
-  status           card_orders_status    @default(PENDING)
-  external_ref     String?               @db.VarChar(255) // ID de l'opération chez le fournisseur
-  executed_at      DateTime?             @db.Timestamp(0)
-  created_at       DateTime              @default(now()) @db.Timestamp(0)
-  deleted          card_orders_deleted?  @default(no)
-  
-  // Relations
-  users            users                 @relation(fields: [user_id], references: [id_user], onDelete: Cascade)
-  virtual_cards    virtual_cards?        @relation(fields: [card_id], references: [id_card], onDelete: SetNull)
-  
-  @@index([card_id], map: "idx_card_orders_card_id")
-  @@index([user_id], map: "idx_card_orders_user_id")
-  @@map("card_orders")
-}
-
-// Nouveaux enums à ajouter
 enum virtual_cards_status {
   ACTIVE
   INACTIVE
@@ -262,4 +320,67 @@ enum card_orders_status {
 enum card_orders_deleted {
   yes
   no
+}
+
+enum BusinessUserRole {
+  BOSS
+  OWNER
+  CASHIER
+}
+
+enum BusinessType {
+  AGENCE
+  BOULANGERIE
+  BOUTIQUE
+  CABINET_MEDICAL
+  CENTRE_SPORTIF
+  CHARCUTERIE
+  COIFFURE
+  ECOLE
+  ENTREPRISE
+  ETABLISSEMENT
+  HOPITAL
+  HOTEL
+  LIBRAIRIE
+  PHARMACIE
+  RESTAURANT
+  SALON_DE_BEAUTE
+  SERVICE_INFORMATIQUE
+  STATION_SERVICE
+  SUPERMARCHE
+  TRANSPORT
+  UNIVERSITE
+  AUTRE
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  APPLICATION
+  QR
+}
+
+enum OTPType {
+  VERIFICATION_EMAIL
+  VERIFICATION_PHONE
+  RESET_PASSWORD
+  RESET_PIN
+}
+
+enum ModeRetrait {
+  MOBILE
+  AGENT
+}
+
+enum StatutRetrait {
+  PENDING
+  COMPLETED
+  EXPIRED
+  CANCELLED
+  FAILED
 }

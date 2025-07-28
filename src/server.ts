@@ -1,11 +1,18 @@
 import express from "express";
-import { PrismaClient } from '@prisma/client';
-import cors from "cors";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import userRoutes from "./interfaces/http/routes/userRoutes";
-import transferRoutes from "./interfaces/http/routes/transfer.routes";
-import userSearchRoutes from "./interfaces/http/routes/userSearchRoutes";
+import cors from "cors";
+
+import userRoutes from "./users/routes/user.routes";
+import transactionRoutes from "./transfer/routes/transaction.route";
+import businessRoutes from './business/routes/business.route';
+import pointOfSaleRoutes from './business/routes/pointOfSale.routes';
+import verificationemailRoutes from "./otp/routes/email.route";
+import verificationphoneRoutes from "./otp/routes/phoneVerification.route";
+import transferRoutes from "./transfer/routes/transfer.route";
+import retraitRoutes from "./retrait/routes/retrait.routes";
+import { errorHandler } from './business/middleware/errorHandler';
+import { ErrorRequestHandler } from 'express';
 
 // App & Server Setup
 const app = express();
@@ -19,45 +26,44 @@ const io = new Server(httpServer, {
   }
 });
 
+// Map pour stocker les utilisateurs connectés
 const connectedUsers = new Map<string, string>();
 
-// Middleware
-app.use(cors({ origin: "*", methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"] }));
+// Middleware CORS
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+}));
 
+// Middleware pour parser JSON avec gestion d’erreur JSON invalide
 app.use(express.json({
-  verify: (req, res, buf) => {
-    try {
-      JSON.parse(buf.toString());
-    } catch (e) {
-      throw new Error("Invalid JSON");
-    }
-  },
-  limit: "10mb"
+  limit: "10mb",
+  strict: false // Accepte des champs non définis dans les modèles
 }));
 
 app.use(express.urlencoded({ extended: true }));
 
-// Routes HTTP
+// Routes
 app.use("/api/users", userRoutes);
+app.use("/api/transfer", transactionRoutes);
+app.use('/api/business', businessRoutes);
+app.use('/api/point-of-sale', pointOfSaleRoutes);
+app.use('/api/verificationEmail', verificationemailRoutes);
+app.use('/api/verificationPhone', verificationphoneRoutes);
+// route pour envoie
+app.use("/api/transfer", transferRoutes);
 
-app.use('/api/search', userSearchRoutes);
+// route pour retrait
+app.use("/api/retrait", retraitRoutes);
 
-app.use("/api/transactions", transferRoutes); 
-
-
-// WebSocket Events
+// WebSocket events
 io.on("connection", (socket) => {
-  console.log("Client connected:", socket.id);
-  console.log('IP address:', socket.handshake.address);
-  
 
-  // Lorsqu’un utilisateur s’enregistre après login
   socket.on("register", (userId: string) => {
     connectedUsers.set(userId, socket.id);
     console.log(`User ${userId} registered on socket ${socket.id}`);
   });
 
-  // Déconnexion
   socket.on("disconnect", () => {
     for (const [userId, socketId] of connectedUsers.entries()) {
       if (socketId === socket.id) {
@@ -69,15 +75,17 @@ io.on("connection", (socket) => {
   });
 });
 
-// Gestion des erreurs JSON
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (err.message === "Invalid JSON") {
-    return res.status(400).json({ error: "Invalid JSON format" });
+const jsonErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
+  if (err && err.message === "Invalid JSON") {
+    res.status(400).json({ error: "Invalid JSON format" });
+    return; // arrêter la fonction ici
   }
   next(err);
-});
+};
 
-// Port d’écoute
+app.use(jsonErrorHandler);
+
+// Démarrage serveur
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

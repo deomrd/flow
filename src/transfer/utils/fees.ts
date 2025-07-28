@@ -1,0 +1,24 @@
+export const calculateTransferFee = (amount: number): number => {
+  if (amount < 5) return amount * 0.15;
+  if (amount < 10) return amount * 0.1;
+  if (amount < 20) return amount * 0.095;
+  if (amount < 50) return amount * 0.085;
+  if (amount < 100) return amount * 0.065;
+  if (amount < 200) return amount * 0.055;
+  if (amount < 500) return amount * 0.045;
+  if (amount < 1000) return amount * 0.035;
+  if (amount < 1500) return amount * 0.025;
+  if (amount < 2000) return amount * 0.015;
+  if (amount < 2500) return amount * 0.01;
+  if (amount < 3000) return amount * 0.0095;
+  if (amount < 3500) return amount * 0.0085;
+  if (amount < 4000) return amount * 0.0075;
+  if (amount < 4500) return amount * 0.0065;
+  if (amount < 5000) return amount * 0.0055;
+  if (amount < 5500) return amount * 0.0045;
+  if (amount < 6000) return amount * 0.0035;
+  if (amount < 6500) return amount * 0.0025;
+  if (amount < 7000) return amount * 0.0015;
+  if (amount < 7500) return amount * 0.001;
+  return amount * 0.0;
+};
