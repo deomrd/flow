@@ -172,7 +172,8 @@ model Business {
   id        String       @id @default(uuid()) @db.Uuid
   name      String
   type      BusinessType
-  email     String?      @unique
+  email     String      @unique
+  pin       String?      @db.VarChar(255)
   balance   Decimal      @default(0) @db.Decimal(15, 2)
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
@@ -188,7 +189,7 @@ model PointOfSale {
   name       String
   location   String?
   balance    Decimal  @default(0) @db.Decimal(15, 2)
-  qrCode     String?
+  qrCode     String   @unique
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -200,7 +201,7 @@ model PointOfSale {
 model BusinessUser {
   id            String           @id @default(uuid()) @db.Uuid
   name          String
-  username      String
+  username      String           @unique
   password      String
   isActive      Boolean          @default(true)
   businessId    String           @db.Uuid
@@ -212,7 +213,7 @@ model BusinessUser {
   business    Business     @relation(fields: [businessId], references: [id])
   pointOfSale PointOfSale? @relation(fields: [pointOfSaleId], references: [id])
 
-  @@unique([username, businessId])
+
 }
 
 model Payment {
@@ -221,6 +222,7 @@ model Payment {
   businessId    String        @db.Uuid
   pointOfSaleId String?       @db.Uuid
   amount        Decimal       @db.Decimal(15, 2)
+  fee           Decimal?      @db.Decimal(15, 2)
   currency      String        @default("USD")
   status        PaymentStatus @default(PENDING)
   method        PaymentMethod

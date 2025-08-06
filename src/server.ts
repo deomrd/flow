@@ -11,8 +11,10 @@ import verificationemailRoutes from "./otp/routes/email.route";
 import verificationphoneRoutes from "./otp/routes/phoneVerification.route";
 import transferRoutes from "./transfer/routes/transfer.route";
 import retraitRoutes from "./retrait/routes/retrait.routes";
+import paiementRoutes from "./paiement/routes/paiement.route"
 import { errorHandler } from './business/middleware/errorHandler';
 import { ErrorRequestHandler } from 'express';
+
 
 // App & Server Setup
 const app = express();
@@ -55,6 +57,9 @@ app.use("/api/transfer", transferRoutes);
 
 // route pour retrait
 app.use("/api/retrait", retraitRoutes);
+
+// route pour paiement
+app.use("/api/paiement", paiementRoutes);
 
 // WebSocket events
 io.on("connection", (socket) => {
